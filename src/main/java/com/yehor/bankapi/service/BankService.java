@@ -42,10 +42,10 @@ public class BankService {
 
     @Transactional(readOnly = true)
     public List<Transaction> getTransactionByType(Integer accountId, TransactionType transactionType){
-        getAccountById(accountId);
         if (accountId == null || transactionType == null) {
             throw new IllegalArgumentException("Account ID and transaction type cannot be null");
         }
+        getAccountById(accountId);
         return transactionRepository.findByAccount_IdAndTransactionType(accountId, transactionType);
     }
     @Transactional(readOnly = true)
@@ -67,7 +67,9 @@ public class BankService {
     @Transactional
     public void deposit(Integer accountId, BigDecimal amount) {
 
-        Account account = getAccountById(accountId);
+        Account account = accountRepository.findByIdForUpdate(accountId)
+                .orElseThrow(() ->
+                        new AccountNotFoundException("Account not found"));
 
         account.deposit(amount);
         accountRepository.save(account);
@@ -85,7 +87,9 @@ public class BankService {
     @Transactional
     public void withdraw(Integer accountId, BigDecimal amount) {
 
-        Account account = getAccountById(accountId);
+        Account account = accountRepository.findByIdForUpdate(accountId)
+                .orElseThrow(() ->
+                        new AccountNotFoundException("Account not found"));
 
         account.withdraw(amount);
         accountRepository.save(account);
@@ -125,10 +129,17 @@ public class BankService {
         if (sender.equals(receiver)) {
             throw new IllegalArgumentException("Cannot transfer to yourself");
         }
+        Integer firstId = Math.min(sender, receiver);
+        Integer secondId = Math.max(sender, receiver);
 
-        Account account1 = getAccountById(sender);
-        Account account2 = getAccountById(receiver);
+        Account firstAccount = accountRepository.findByIdForUpdate(firstId)
+                .orElseThrow(() -> new AccountNotFoundException("Account not found"));
 
+        Account secondAccount = accountRepository.findByIdForUpdate(secondId)
+                .orElseThrow(() -> new AccountNotFoundException("Account not found"));
+
+        Account account1 = sender.equals(firstId) ? firstAccount : secondAccount;
+        Account account2 = receiver.equals(firstId) ? firstAccount : secondAccount;
         account1.withdraw(amount);
         account2.deposit(amount);
 
@@ -173,14 +184,15 @@ public class BankService {
 
     @Transactional
     public void changePassword(Integer acc_id, String oldPassword, String newPassword){
-            Account account = getAccountById(acc_id);
+
             if (oldPassword == null || newPassword == null) {
                 throw new IllegalArgumentException("Passwords cannot be null");
             }
-
+            Account account = getAccountById(acc_id);
             if (!passwordEncoder.matches(oldPassword, account.getPasswordHash())) {
                 throw new IllegalArgumentException("Incorrect old password");
             }
+
             String newPasswordHash = passwordEncoder.encode(newPassword);
             account.changePasswordHash(newPasswordHash);
             accountRepository.save(account);

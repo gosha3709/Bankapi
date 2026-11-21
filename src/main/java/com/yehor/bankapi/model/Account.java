@@ -1,5 +1,6 @@
 package com.yehor.bankapi.model;
 
+import com.yehor.bankapi.exception.InsufficientFundsException;
 import com.yehor.bankapi.exception.InvalidAmountException;
 import jakarta.persistence.*;
 
@@ -68,8 +69,7 @@ public class Account {
         }
 
         if (amount.compareTo(balance) > 0) {
-            //throw new InsufficientFundsException();
-            throw new IllegalArgumentException("Insufficient funds");
+            throw new InsufficientFundsException();
         }
 
         balance = balance.subtract(amount);
